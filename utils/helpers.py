@@ -4,42 +4,32 @@ import numpy as np
 
 def _num(v, nd=4):
     """Format a metric for the report ('-' when missing / non-finite)."""
-    if v is None:
-        return "-"
     try:
         v = float(v)
     except (TypeError, ValueError):
         return "-"
-    if not np.isfinite(v):
-        return "-"
-    return f"{v:.{nd}f}"
+    return f"{v:.{nd}f}" if np.isfinite(v) else "-"
 
 
 def _cm_first(cm, *names):
     """First matching value in trainer.callback_metrics (exact, then prefix)."""
     for n in names:
         if n in cm:
-            try:
-                return float(cm[n])
-            except (TypeError, ValueError):
-                pass
+            try: return float(cm[n])
+            except (TypeError, ValueError): pass
     for n in names:
         for k, v in cm.items():
             if k.startswith(n):
-                try:
-                    return float(v)
-                except (TypeError, ValueError):
-                    pass
+                try: return float(v)
+                except (TypeError, ValueError): pass
     return None
 
 
 def _cm_lr(cm):
     for k, v in cm.items():
         if k.startswith("lr") or "learning_rate" in k:
-            try:
-                return float(v)
-            except (TypeError, ValueError):
-                pass
+            try: return float(v)
+            except (TypeError, ValueError): pass
     return None
 
 
@@ -81,8 +71,7 @@ def enable_determinism():
     import torch
     os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
     torch.use_deterministic_algorithms(True, warn_only=True)
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False; torch.backends.cudnn.deterministic = True
     torch.backends.cuda.matmul.allow_tf32 = True   # TF32 kept: it is deterministic per op
     torch.backends.cudnn.allow_tf32 = True
 
