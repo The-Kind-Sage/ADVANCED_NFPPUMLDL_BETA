@@ -3,11 +3,8 @@
 # ======================================================================================
 
 # Data paths
-csv_candidates:
-  - "Dataset/wfp_food_prices_npl.csv"
-  - "wfp_food_prices_npl.csv"
-  - "data/wfp_food_prices_npl.csv"
-  - "/content/wfp_food_prices_npl.csv"
+csv_candidates: ["Dataset/wfp_food_prices_npl.csv", "wfp_food_prices_npl.csv",
+                 "data/wfp_food_prices_npl.csv", "/content/wfp_food_prices_npl.csv"]
 
 out_dir: "tft_results"
 
@@ -45,7 +42,6 @@ static_real: ["latitude", "longitude"]
 known_cat: ["month"]
 known_real: ["time_norm", "month_sin", "month_cos", "year_norm",
              "monsoon", "harvest", "lean_season", "festival"]
-unknown_real: ["price", "log_price", "lag_1", "lag_3", "lag_12",
-               "roll_mean_3", "roll_mean_12", "roll_std_12", "vol_ratio",
-               "mom_pct", "yoy_pct", "dev_roll12",
-               "nat_index", "comm_index", "is_imputed"]
+unknown_real: ["price", "log_price", "lag_1", "lag_3", "lag_12", "roll_mean_3", "roll_mean_12",
+               "roll_std_12", "vol_ratio", "mom_pct", "yoy_pct", "dev_roll12", "nat_index",
+               "comm_index", "is_imputed"]
