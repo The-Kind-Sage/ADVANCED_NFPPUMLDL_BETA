@@ -1,7 +1,9 @@
 """Data loading and EDA reporting."""
+import os
 import pandas as pd
 from pathlib import Path
-from config import CSV_CANDIDATES
+from config import CSV_CANDIDATES, OUT_DIR, VAL_START, TEST_START
+from .preprocessing import preprocess, chronological_split
 
 
 def find_csv():
@@ -33,3 +35,14 @@ def load_and_report(csv_path):
     print("\nTop commodities by rows:")
     print(df["commodity"].value_counts().head(10).to_string())
     return df
+
+
+def load_panel():
+    """CSV -> EDA report -> preprocessed panel; creates OUT_DIR. Shared by every CLI mode."""
+    os.makedirs(OUT_DIR, exist_ok=True)
+    return preprocess(load_and_report(find_csv()))
+
+
+def split_panel(df):
+    """Chronological train/val/test split shared by all CLI modes."""
+    return chronological_split(df, VAL_START, TEST_START)
