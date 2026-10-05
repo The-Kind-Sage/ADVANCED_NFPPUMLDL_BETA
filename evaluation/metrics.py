@@ -27,11 +27,8 @@ def naive_baselines(df, test_start):
     s["naive_last"] = s.groupby("series_id")["price"].shift(1)
     s["naive_seas12"] = s.groupby("series_id")["price"].shift(12)
     t = s[s["date"] >= test_start].dropna(subset=["naive_last", "naive_seas12"])
-    out = {
-        "naive_last_value": reg_metrics(t["price"], t["naive_last"]),
-        "naive_seasonal_12": reg_metrics(t["price"], t["naive_seas12"]),
-    }
-    return out
+    return {"naive_last_value": reg_metrics(t["price"], t["naive_last"]),
+            "naive_seasonal_12": reg_metrics(t["price"], t["naive_seas12"])}
 
 
 def aligned_baselines(df, index, horizon=3):
