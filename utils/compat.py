@@ -1,6 +1,5 @@
 """Version compatibility helpers for pytorch-forecasting / lightning."""
 import torch
-import numpy as np
 import pandas as pd
 
 
@@ -16,8 +15,7 @@ def unpack_predict_output(res):
     if hasattr(res, "_fields"):  # Prediction namedtuple (current versions)
         out = res.output
         raw = out.prediction if hasattr(out, "prediction") else out
-        x = res.x
-        y = res.y
+        x, y = res.x, res.y
         if isinstance(y, (list, tuple)):
             y = y[0] if len(y) > 0 else None
         idx = res.index
@@ -38,13 +36,10 @@ def unpack_predict_output(res):
             out = raw
     return {"out": out, "raw": raw, "x": x, "y": y, "index": idx}
 
-
 def _prediction_tensor(out):
     """Pull the prediction tensor out of a model forward output (any pf version)."""
-    if out is None:
-        return None
-    if torch.is_tensor(out):
-        return out
+    if out is None: return None
+    if torch.is_tensor(out): return out
     if isinstance(out, dict):
         for k in ("prediction", "output", "out"):
             if k in out:
