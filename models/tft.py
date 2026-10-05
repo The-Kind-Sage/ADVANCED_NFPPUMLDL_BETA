@@ -1,14 +1,12 @@
 """TFT model building and training."""
 import os
 import numpy as np
-import time
-import json
 
 # Suppress Lightning tips about litlogger/litmodels
 os.environ.setdefault("LIGHTNING_VERBOSE", "0")
 from config import (
     MAX_EPOCHS, BATCH, HIDDEN, HEADS, SEED, PATIENCE,
-    MAX_ENCODER, MAX_PRED, DROPOUT, LEARNING_RATE, WEIGHT_DECAY, TARGET_TRANSFORM
+    DROPOUT, LEARNING_RATE, WEIGHT_DECAY, TARGET_TRANSFORM
 )
 from utils import enable_determinism, determinism_report
 from training.callbacks import make_epoch_reporter
@@ -51,10 +49,6 @@ class WeightedQuantileLoss(QuantileLoss):
         return losses * w
 
 
-def make_loss():
-    return WeightedQuantileLoss()
-
-
 def train_tft(training, validation, out_dir, max_epochs=MAX_EPOCHS,
               batch=BATCH, hidden=HIDDEN, patience=PATIENCE, ref_median=None):
     try:
@@ -63,10 +57,7 @@ def train_tft(training, validation, out_dir, max_epochs=MAX_EPOCHS,
     except ImportError:
         import pytorch_lightning as pl
         from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint
-    try:
-        from pytorch_forecasting import TemporalFusionTransformer
-    except ImportError:
-        from pytorch_forecasting import TemporalFusionTransformer
+    from pytorch_forecasting import TemporalFusionTransformer
 
     pl.seed_everything(SEED, workers=True)
     enable_determinism()
@@ -74,21 +65,11 @@ def train_tft(training, validation, out_dir, max_epochs=MAX_EPOCHS,
     train_dl = training.to_dataloader(train=True, batch_size=batch, num_workers=0)
     val_dl = validation.to_dataloader(train=False, batch_size=batch * 2, num_workers=0)
 
-    loss = make_loss()
+    loss = WeightedQuantileLoss()
     tft = TemporalFusionTransformer.from_dataset(
-        training,
-        hidden_size=hidden,
-        lstm_layers=2,
-        attention_head_size=HEADS,
-        dropout=DROPOUT,
-        hidden_continuous_size=32,
-        output_size=7,                    # 7 quantiles [0.02..0.98], median = index 3
-        loss=loss,
-        learning_rate=LEARNING_RATE,
-        weight_decay=WEIGHT_DECAY,
-        log_interval=20,
-        reduce_on_plateau_patience=4,
-    )
+        training, hidden_size=hidden, lstm_layers=2, attention_head_size=HEADS, dropout=DROPOUT,
+        hidden_continuous_size=32, output_size=7, loss=loss, learning_rate=LEARNING_RATE,
+        weight_decay=WEIGHT_DECAY, log_interval=20, reduce_on_plateau_patience=4)
     print(f"\nTFT params: hidden={hidden} heads={HEADS} dropout={DROPOUT} "
           f"lr={LEARNING_RATE} weight_decay={WEIGHT_DECAY} | "
           f"target={TARGET_TRANSFORM or 'raw'} | "
@@ -121,8 +102,7 @@ def train_tft(training, validation, out_dir, max_epochs=MAX_EPOCHS,
     except Exception as e:
         print(f"(training curves skipped: {e})")
     summary = reporter.summary()
-    if summary:
-        print(f"\nTRAINING SUMMARY: {summary}", flush=True)
+    if summary: print(f"\nTRAINING SUMMARY: {summary}", flush=True)
 
     best_path = ckpt_cb.best_model_path
     print(f"\nbest checkpoint: {best_path}")
