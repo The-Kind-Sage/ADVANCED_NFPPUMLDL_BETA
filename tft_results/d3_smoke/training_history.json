@@ -1,0 +1,26 @@
+[
+  {
+    "epoch": 1,
+    "train_loss": 3.818903684616089,
+    "val_loss": 8.110671043395996,
+    "val_MAE": 8.301889870383523,
+    "val_RMSE": 13.068133028565049,
+    "lr": 0.0005000000237487257,
+    "seconds": 3.2,
+    "is_best": true,
+    "best_epoch": 1,
+    "stale_epochs": 0
+  },
+  {
+    "epoch": 2,
+    "train_loss": 3.145606517791748,
+    "val_loss": 7.532752990722656,
+    "val_MAE": 8.247352183948864,
+    "val_RMSE": 13.059350153068664,
+    "lr": 0.0005000000237487257,
+    "seconds": 3.0,
+    "is_best": true,
+    "best_epoch": 2,
+    "stale_epochs": 0
+  }
+]

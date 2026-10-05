@@ -1,0 +1,85 @@
+==============================================================================
+NEPAL FOOD PRICE FORECASTING - TFT FINAL REPORT
+generated : 2026-09-29 11:15:57
+mode      : smoke
+output dir: tft_results\d3_smoke
+==============================================================================
+
+[CONFIG]
+  lookback=12 mo | horizon=2 mo | batch=256 | hidden=16 | heads=4
+  max_epochs=2 | epochs_run=2 | early_stop_patience=2 | seed=42
+  split: train < 2024-01-15 | val = 2024 | test >= 2025-01-15 (holdout)
+  dropout=0.25 | lr=0.0005 | weight_decay=0.0001
+  target = price_diff3 (3-month change) | transform = none | loss = WeightedQuantileLoss over 7 quantiles; reported prediction = median, rebuilt to price level as price(T+h-4) + price_diff3
+
+[1] PER-EPOCH TRAINING REPORT (2 epochs, live-printed during run)
+  epoch  train_loss   val_loss    val_MAE   val_RMSE        lr     sec  note
+  ----------------------------------------------------------------------------
+      1      3.8189     8.1107        8.3       13.1   0.00050     3.2  *new best* best@1 stale=0/2
+      2      3.1456     7.5328        8.2       13.1   0.00050     3.0  *new best* best@2 stale=0/2
+
+  best epoch 2: val_loss=7.5328 val_MAE=8.2 val_RMSE=13.1 NPR
+
+[2] FINAL TEST METRICS (holdout 2025-01 .. 2026-08, prices in NPR)
+  overall_pooled             MAE=12.63  RMSE=53.31  MAPE=17.76%  R2=0.2912  n=380
+  horizon_h1                 MAE=12.70  RMSE=53.34  MAPE=18.06%  R2=0.2930  n=190
+  horizon_h2                 MAE=12.55  RMSE=53.28  MAPE=17.47%  R2=0.2894  n=190
+
+  baseline_persistence:
+  horizon_h1                 MAE=9.67  RMSE=51.85  MAPE=12.52%  R2=0.3319  n=190
+  horizon_h2                 MAE=11.36  RMSE=51.75  MAPE=14.84%  R2=0.3296  n=190
+  overall_pooled             MAE=10.52  RMSE=51.80  MAPE=13.68%  R2=0.3307  n=380
+
+  baseline_seasonal_naive:
+  horizon_h1                 MAE=12.32  RMSE=40.21  MAPE=13.84%  R2=0.5983  n=190
+  horizon_h2                 MAE=12.14  RMSE=40.13  MAPE=13.74%  R2=0.5969  n=190
+  overall_pooled             MAE=12.23  RMSE=40.17  MAPE=13.79%  R2=0.5976  n=380
+
+  baseline_rolling_one_step:
+  horizon_h1                 MAE=9.67  RMSE=51.85  MAPE=12.52%  R2=0.3319  n=190
+  horizon_h2                 MAE=9.51  RMSE=51.82  MAPE=11.99%  R2=0.3278  n=190
+  overall_pooled             MAE=9.59  RMSE=51.84  MAPE=12.26%  R2=0.3299  n=380
+
+  skill_vs_persistence:
+    horizon_h1               -0.313
+    horizon_h2               -0.105
+    overall_pooled           -0.201
+
+  naive_row_level_reference:
+  naive_last_value           MAE=9.40  RMSE=50.57  MAPE=12.15%  R2=0.3512  n=200
+  naive_seasonal_12          MAE=12.07  RMSE=39.25  MAPE=13.59%  R2=0.6091  n=200
+
+  interval_calibration:
+    coverage_80_overall      +0.382
+    mean_width_overall       +9.042
+    quantile_crossing_cells  +380.000
+    quantile_crossing_pct    +100.000
+    coverage_80_h1           +0.395
+    mean_width_h1            +9.332
+    coverage_80_h2           +0.368
+    mean_width_h2            +8.752
+
+  baseline_* = same windows / same rows / same information as the TFT
+              (fixes the old naive-vs-TFT row mismatch).
+  skill_vs_persistence > 0 -> TFT beats persistence on that horizon.
+  rolling_one_step peeks at actuals for h>1: an upper bar, not a rival.
+  naive_row_level_reference = legacy row-level h1 numbers (different n).
+
+[4] FILES IN THIS RUN
+  actual_vs_predicted.png
+  checkpoints
+  interpretation_attention.png
+  interpretation_decoder_importance.png
+  interpretation_encoder_importance.png
+  interpretation_static_importance.png
+  interval_calibration.png
+  metrics.json
+  residual_distribution.png
+  sample_forecast_0.png
+  sample_forecast_189.png
+  sample_forecast_95.png
+  test_predictions.npz
+  training_curves.png
+  training_history.csv
+  training_history.json
+  training_logs
