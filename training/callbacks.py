@@ -2,14 +2,14 @@
 import os
 import time
 import json
+import numpy as np
 import pandas as pd
+from utils import _num, _cm_first, _cm_lr, _epoch_line, _prediction_tensor, _to_price
 
 
 def make_epoch_reporter(pl, out_dir, max_epochs, ref_median=None, patience=6):
     """Lightning callback: live per-epoch report on stdout + training_history.csv."""
-    Callback = pl.Callback
-
-    class EpochReporter(Callback):
+    class EpochReporter(pl.Callback):
         def __init__(self):
             super().__init__()
             self.out_dir = out_dir
@@ -17,16 +17,10 @@ def make_epoch_reporter(pl, out_dir, max_epochs, ref_median=None, patience=6):
             self.patience = int(patience)
             self.ref_median = float(ref_median) if ref_median else 100.0
             self.history = []
-            self._hook = None
-            self._pred = None
-            self._apply = None
-            self._ae = 0.0
-            self._se = 0.0
-            self._n = 0
+            self._hook = None; self._pred = None; self._apply = None
+            self._ae = 0.0; self._se = 0.0; self._n = 0
             self._t_epoch = time.time()
-            self._best_path = ""
-            self._best_epoch = None
-            self._warned = False
+            self._best_path = ""; self._best_epoch = None; self._warned = False
 
         # ---- capture the forward pass during validation (costs nothing extra) ----
         def on_validation_start(self, trainer, pl_module):
@@ -101,15 +95,12 @@ def make_epoch_reporter(pl, out_dir, max_epochs, ref_median=None, patience=6):
                 return
             cm = trainer.callback_metrics
             epoch = int(trainer.current_epoch) + 1
-            row = {
-                "epoch": epoch,
-                "train_loss": _cm_first(cm, "train_loss", "train_epoch_loss", "training_loss"),
-                "val_loss": _cm_first(cm, "val_loss", "validation_loss"),
-                "val_MAE": (self._ae / self._n) if self._n else None,
-                "val_RMSE": (self._se / self._n) ** 0.5 if self._n else None,
-                "lr": _cm_lr(cm),
-                "seconds": round(time.time() - self._t_epoch, 1),
-            }
+            row = {"epoch": epoch,
+                   "train_loss": _cm_first(cm, "train_loss", "train_epoch_loss", "training_loss"),
+                   "val_loss": _cm_first(cm, "val_loss", "validation_loss"),
+                   "val_MAE": (self._ae / self._n) if self._n else None,
+                   "val_RMSE": (self._se / self._n) ** 0.5 if self._n else None,
+                   "lr": _cm_lr(cm), "seconds": round(time.time() - self._t_epoch, 1)}
             ckpt = getattr(trainer, "checkpoint_callback", None)
             path = getattr(ckpt, "best_model_path", "") or ""
             row["is_best"] = bool(path) and path != self._best_path
@@ -129,8 +120,8 @@ def make_epoch_reporter(pl, out_dir, max_epochs, ref_median=None, patience=6):
         def _write(self):
             if not self.history:
                 return
-            pd.DataFrame(self.history).to_csv(
-                os.path.join(self.out_dir, "training_history.csv"), index=False)
+            pd.DataFrame(self.history).to_csv(os.path.join(self.out_dir, "training_history.csv"),
+                                              index=False)
             with open(os.path.join(self.out_dir, "training_history.json"), "w") as fh:
                 json.dump(self.history, fh, indent=2)
 
@@ -158,8 +149,3 @@ def make_epoch_reporter(pl, out_dir, max_epochs, ref_median=None, patience=6):
                     f"{tail}")
 
     return EpochReporter()
-
-
-# Import helpers from utils (avoid circular import)
-from utils import _num, _cm_first, _cm_lr, _epoch_line, _prediction_tensor, _to_price
-import numpy as np
