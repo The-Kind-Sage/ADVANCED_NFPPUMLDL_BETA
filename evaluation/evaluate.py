@@ -2,10 +2,8 @@
 import os
 import json
 import numpy as np
-import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 from config import BATCH, TEST_START
 from utils import unpack_predict_output, denorm, accelerator_name
 from evaluation.metrics import reg_metrics, naive_baselines, aligned_baselines
