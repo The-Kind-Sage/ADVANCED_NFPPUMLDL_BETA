@@ -1,9 +1,7 @@
 """Preprocessing - clean monthly panel per series."""
 import numpy as np
 import pandas as pd
-from config import (
-    MIN_SERIES_LEN, STATIC_CAT, STATIC_REAL, KNOWN_CAT, KNOWN_REAL, UNKNOWN_REAL
-)
+from config import MIN_SERIES_LEN
 
 
 def preprocess(df):
@@ -39,7 +37,6 @@ def preprocess(df):
         g["date"] = full_idx.to_timestamp() + pd.offsets.Day(14)  # monthly 15th
         g["ym"] = full_idx
         miss = g["price"].isna().to_numpy()
-        # find NaN runs
         runs, i, n = [], 0, len(g)
         while i < n:
             if miss[i]:
@@ -60,8 +57,7 @@ def preprocess(df):
             n_splits += 1
             bounds, start = [], 0
             for (a, b) in cuts:
-                bounds.append((start, a))
-                start = b + 1
+                bounds.append((start, a)); start = b + 1
             bounds.append((start, n))
             k = 0
             for (a, b) in bounds:
@@ -75,8 +71,8 @@ def preprocess(df):
     # --- time index (global month counter) ---
     df = df.sort_values(["series_id", "date"]).reset_index(drop=True)
     t0 = df["date"].min()
-    df["time_idx"] = ((df["date"].dt.year - t0.year) * 12
-                      + (df["date"].dt.month - t0.month)).astype(int)
+    df["time_idx"] = ((df["date"].dt.year - t0.year) * 12 +
+                      (df["date"].dt.month - t0.month)).astype(int)
 
     # --- known future features (calendar - always knowable ahead) ---
     m = df["date"].dt.month
