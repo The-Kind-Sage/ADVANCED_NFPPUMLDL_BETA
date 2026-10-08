@@ -23,3 +23,15 @@ python main.py --mode smoke    # tiny 2-epoch end-to-end check
 Extra experiment scripts: `scripts/benchmark_forecasts.py` (five baseline strategies),
 `scripts/rolling_backtest.py` (expanding-window backtest) and `scripts/finetune.py`
 (short fine-tuning trials).
+
+## Results (test window 2025-01 .. 2026-08)
+
+| model | pooled MAE (NPR) |
+|---|---|
+| persistence baseline | 11.03 |
+| seasonal naive | 21.40 |
+| **TFT (best checkpoint)** | **17.59** |
+
+Skill vs persistence: -0.595 pooled (h1 15.97 / h2 18.24 / h3 18.56). The strong
+persistence baseline is hard to beat on this window - all ablations and experiment
+reports live in `tft_results/`.
