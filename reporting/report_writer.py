@@ -68,14 +68,10 @@ def write_final_report(out_dir, mode, history, metrics, commodity_rows=None, con
                lookback_note="", epochs_run=(history[-1]["epoch"] if history else 0))
     if config:
         cfg.update(config)
-    L = []
-    add = L.append
-    add("=" * 78)
-    add("NEPAL FOOD PRICE FORECASTING - TFT FINAL REPORT")
+    L = []; add = L.append
+    add("=" * 78); add("NEPAL FOOD PRICE FORECASTING - TFT FINAL REPORT")
     add(f"generated : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    add(f"mode      : {mode}")
-    add(f"output dir: {out_dir}")
-    add("=" * 78)
+    add(f"mode      : {mode}"); add(f"output dir: {out_dir}"); add("=" * 78)
 
     add("")
     add("[CONFIG]")
@@ -93,8 +89,7 @@ def write_final_report(out_dir, mode, history, metrics, commodity_rows=None, con
     if history:
         hdr = (f"{'epoch':>5} {'train_loss':>11} {'val_loss':>10} {'val_MAE':>10} "
                f"{'val_RMSE':>10} {'lr':>9} {'sec':>7}  note")
-        add("  " + hdr)
-        add("  " + "-" * (len(hdr) + 2))
+        add("  " + hdr); add("  " + "-" * (len(hdr) + 2))
         for r in history:
             note = []
             if r.get("is_best"):
@@ -138,8 +133,7 @@ def write_final_report(out_dir, mode, history, metrics, commodity_rows=None, con
             add(f"  {str(r['commodity'])[:22]:22s} {r['MAE']:>9.2f} {r['RMSE']:>9.2f} "
                 f"{r['MAPE_%']:>8.2f} {r['R2']:>9.4f} {r['n']:>7d}")
 
-    add("")
-    add("[4] FILES IN THIS RUN")
+    add(""); add("[4] FILES IN THIS RUN")
     try:
         for f in sorted(os.listdir(out_dir)):
             add(f"  {f}")
