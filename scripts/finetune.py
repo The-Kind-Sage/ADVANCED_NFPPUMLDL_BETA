@@ -14,34 +14,20 @@ from training.callbacks import make_epoch_reporter
 from training.trainer import create_trainer
 from utils import accelerator_name, denorm, enable_determinism, unpack_predict_output
 
-
 EPOCHS = 2
 TRIALS = {
     "low_lr": {"learning_rate": 0.00005, "weight_decay": 0.0001},
-    "regularized": {
-        "learning_rate": 0.0001,
-        "weight_decay": 0.0005,
-        "dropout": 0.4,
-    },
-    "median_focused": {
-        "learning_rate": 0.00005,
-        "weight_decay": 0.0001,
-        "quantile_weights": [0.25, 0.5, 1.0, 4.0, 1.0, 0.5, 0.25],
-    },
+    "regularized": {"learning_rate": 0.0001, "weight_decay": 0.0005, "dropout": 0.4},
+    "median_focused": {"learning_rate": 0.00005, "weight_decay": 0.0001,
+                       "quantile_weights": [0.25, 0.5, 1.0, 4.0, 1.0, 0.5, 0.25]},
 }
 
 
 def validation_mae(model, validation, ref_median):
-    dataloader = validation.to_dataloader(
-        train=False, batch_size=BATCH * 2, num_workers=0
-    )
+    dataloader = validation.to_dataloader(train=False, batch_size=BATCH * 2, num_workers=0)
     result = model.predict(
-        dataloader,
-        mode="raw",
-        return_x=True,
-        return_y=True,
-        trainer_kwargs={"accelerator": accelerator_name(), "devices": 1, "logger": False},
-    )
+        dataloader, mode="raw", return_x=True, return_y=True,
+        trainer_kwargs={"accelerator": accelerator_name(), "devices": 1, "logger": False})
     output = unpack_predict_output(result)
     predictions = denorm(output["raw"], output["x"]["target_scale"], ref_median)
     actual = denorm(output["y"], output["x"]["target_scale"], ref_median)
@@ -69,7 +55,6 @@ def tune_trial(name, settings, checkpoint, training, validation, ref_median, run
 
     if "dropout" in settings:
         import torch
-
         for module in model.modules():
             if isinstance(module, torch.nn.Dropout):
                 module.p = settings["dropout"]
@@ -81,19 +66,16 @@ def tune_trial(name, settings, checkpoint, training, validation, ref_median, run
     train_dl = training.to_dataloader(train=True, batch_size=BATCH, num_workers=0)
     val_dl = validation.to_dataloader(train=False, batch_size=BATCH * 2, num_workers=0)
     reporter = make_epoch_reporter(pl, str(trial_dir), EPOCHS, ref_median=ref_median)
-    checkpoint_callback = ModelCheckpoint(
-        dirpath=str(checkpoint_dir), filename="epoch{epoch:02d}",
-        save_top_k=-1, every_n_epochs=1,
-    )
+    checkpoint_callback = ModelCheckpoint(dirpath=str(checkpoint_dir), filename="epoch{epoch:02d}",
+                                          save_top_k=-1, every_n_epochs=1)
     trainer = create_trainer(EPOCHS, [reporter, checkpoint_callback], logger=False)
     print(f"\n=== Fine-tuning {name}: {settings} ===", flush=True)
     trainer.fit(model, train_dataloaders=train_dl, val_dataloaders=val_dl)
 
     scored = []
     for candidate_path in sorted(checkpoint_dir.glob("*.ckpt")):
-        candidate = TemporalFusionTransformer.load_from_checkpoint(
-            str(candidate_path), map_location="cpu"
-        )
+        candidate = TemporalFusionTransformer.load_from_checkpoint(str(candidate_path),
+                                                                   map_location="cpu")
         score = validation_mae(candidate, validation, ref_median)
         scored.append({"checkpoint": str(candidate_path), "validation_MAE": score})
         print(f"{candidate_path.name}: validation MAE={score:.4f}", flush=True)
@@ -123,9 +105,7 @@ def main():
                          key=lambda path: path.stat().st_mtime)
     if not checkpoint.is_file():
         raise FileNotFoundError(checkpoint)
-    run_dir = args.out_dir or Path("tft_results") / (
-        "finetune_" + datetime.now().strftime("%Y%m%d_%H%M%S")
-    )
+    run_dir = args.out_dir or Path("tft_results") / ("finetune_" + datetime.now().strftime("%Y%m%d_%H%M%S"))
     if run_dir.exists() and any(run_dir.iterdir()):
         raise FileExistsError(f"Refusing to overwrite non-empty output directory: {run_dir}")
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -133,35 +113,25 @@ def main():
     print(f"Starting checkpoint: {checkpoint}")
     raw = load_and_report(find_csv())
     df = preprocess(raw)
-    train_df, val_hist, test_hist, val_idx, test_idx = chronological_split(
-        df, VAL_START, TEST_START
-    )
-    training, validation, test = build_datasets(
-        train_df, val_hist, test_hist, val_idx, test_idx
-    )
+    train_df, val_hist, test_hist, val_idx, test_idx = chronological_split(df, VAL_START, TEST_START)
+    training, validation, test = build_datasets(train_df, val_hist, test_hist, val_idx, test_idx)
     ref_median = float(df["price"].median())
 
     results = {}
     for name, settings in TRIALS.items():
-        results[name] = tune_trial(
-            name, settings, checkpoint, training, validation, ref_median, run_dir
-        )
+        results[name] = tune_trial(name, settings, checkpoint, training, validation,
+                                   ref_median, run_dir)
 
-    winner_name, winner = min(
-        results.items(), key=lambda item: item[1]["best"]["validation_MAE"]
-    )
-    summary = {
-        "starting_checkpoint": str(checkpoint),
-        "selection_metric": "2024 validation median-forecast MAE (NPR)",
-        "trials": results,
-        "winner": winner_name,
-    }
+    winner_name, winner = min(results.items(),
+                              key=lambda item: item[1]["best"]["validation_MAE"])
+    summary = {"starting_checkpoint": str(checkpoint),
+               "selection_metric": "2024 validation median-forecast MAE (NPR)",
+               "trials": results, "winner": winner_name}
     summary_path = run_dir / "experiment_summary.json"
     summary_path.write_text(json.dumps(summary, indent=2))
 
-    best_model = TemporalFusionTransformer.load_from_checkpoint(
-        winner["best"]["checkpoint"], map_location="cpu"
-    )
+    best_model = TemporalFusionTransformer.load_from_checkpoint(winner["best"]["checkpoint"],
+                                                                map_location="cpu")
     print(f"\nSelected on validation: {winner_name} "
           f"(MAE={winner['best']['validation_MAE']:.4f} NPR)")
     test_metrics = evaluate(best_model, test, df, str(run_dir))
