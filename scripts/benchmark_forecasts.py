@@ -14,11 +14,9 @@ from models.tft import WeightedQuantileLoss
 from utils import accelerator_name, denorm, enable_determinism, unpack_predict_output
 
 CATEGORICAL = ["market", "commodity", "category", "unit"]
-NUMERIC = [
-    "horizon", "price", "lag_1", "lag_3", "lag_12", "roll_mean_3",
-    "roll_mean_12", "roll_std_12", "momentum_1", "momentum_3",
-    "momentum_12", "slope_6", "month_sin", "month_cos", "year_norm",
-]
+NUMERIC = ["horizon", "price", "lag_1", "lag_3", "lag_12", "roll_mean_3", "roll_mean_12",
+           "roll_std_12", "momentum_1", "momentum_3", "momentum_12", "slope_6",
+           "month_sin", "month_cos", "year_norm"]
 
 
 def add_model_features(df):
@@ -35,27 +33,15 @@ def add_model_features(df):
 def feature_row(origin, horizon):
     forecast_date = origin["date"] + pd.DateOffset(months=horizon)
     month_angle = 2 * np.pi * forecast_date.month / 12.0
-    return {
-        "market": origin["market"],
-        "commodity": origin["commodity"],
-        "category": origin["category"],
-        "unit": origin["unit"],
-        "horizon": horizon,
-        "price": origin["price"],
-        "lag_1": origin["lag_1"],
-        "lag_3": origin["lag_3"],
-        "lag_12": origin["lag_12"],
-        "roll_mean_3": origin["roll_mean_3"],
-        "roll_mean_12": origin["roll_mean_12"],
-        "roll_std_12": origin["roll_std_12"],
-        "momentum_1": origin["momentum_1"],
-        "momentum_3": origin["momentum_3"],
-        "momentum_12": origin["momentum_12"],
-        "slope_6": origin["slope_6"],
-        "month_sin": np.sin(month_angle),
-        "month_cos": np.cos(month_angle),
-        "year_norm": (forecast_date.year - 2001) / 25.0,
-    }
+    return {"market": origin["market"], "commodity": origin["commodity"],
+            "category": origin["category"], "unit": origin["unit"], "horizon": horizon,
+            "price": origin["price"], "lag_1": origin["lag_1"], "lag_3": origin["lag_3"],
+            "lag_12": origin["lag_12"], "roll_mean_3": origin["roll_mean_3"],
+            "roll_mean_12": origin["roll_mean_12"], "roll_std_12": origin["roll_std_12"],
+            "momentum_1": origin["momentum_1"], "momentum_3": origin["momentum_3"],
+            "momentum_12": origin["momentum_12"], "slope_6": origin["slope_6"],
+            "month_sin": np.sin(month_angle), "month_cos": np.cos(month_angle),
+            "year_norm": (forecast_date.year - 2001) / 25.0}
 
 
 def make_training_examples(df):
@@ -88,19 +74,12 @@ def make_window_features(df, index):
 def predict_tft(model, dataset):
     dataloader = dataset.to_dataloader(train=False, batch_size=256, num_workers=0)
     result = model.predict(
-        dataloader,
-        mode="raw",
-        return_x=True,
-        return_y=True,
-        return_index=True,
-        trainer_kwargs={"accelerator": accelerator_name(), "devices": 1, "logger": False},
-    )
+        dataloader, mode="raw", return_x=True, return_y=True, return_index=True,
+        trainer_kwargs={"accelerator": accelerator_name(), "devices": 1, "logger": False})
     output = unpack_predict_output(result)
     median = np.clip(
         denorm(output["raw"], output["x"]["target_scale"], float(model._benchmark_median))[:, :, 3],
-        0,
-        None,
-    )
+        0, None)
     actual = denorm(output["y"], output["x"]["target_scale"], float(model._benchmark_median))
     return actual, median, output["index"]
 
@@ -117,7 +96,6 @@ def main():
     parser.add_argument("--checkpoint", type=Path)
     parser.add_argument("--out-dir", type=Path)
     args = parser.parse_args()
-
     try:
         from lightning.pytorch import seed_everything
     except ImportError:
@@ -137,20 +115,15 @@ def main():
     if not checkpoint.is_file():
         raise FileNotFoundError(checkpoint)
     run_dir = args.out_dir or Path("tft_results") / (
-        "benchmark_" + datetime.now().strftime("%Y%m%d_%H%M%S")
-    )
+        "benchmark_" + datetime.now().strftime("%Y%m%d_%H%M%S"))
     if run_dir.exists() and any(run_dir.iterdir()):
         raise FileExistsError(f"Refusing to overwrite non-empty output directory: {run_dir}")
     run_dir.mkdir(parents=True, exist_ok=True)
 
     raw = load_and_report(find_csv())
     df = add_model_features(preprocess(raw))
-    train_df, val_hist, test_hist, val_idx, test_idx = chronological_split(
-        df, VAL_START, TEST_START
-    )
-    training, validation, test = build_datasets(
-        train_df, val_hist, test_hist, val_idx, test_idx
-    )
+    train_df, val_hist, test_hist, val_idx, test_idx = chronological_split(df, VAL_START, TEST_START)
+    training, validation, test = build_datasets(train_df, val_hist, test_hist, val_idx, test_idx)
     model = TemporalFusionTransformer.load_from_checkpoint(str(checkpoint), map_location="cpu")
     if not isinstance(model.loss, WeightedQuantileLoss):
         raise TypeError("Checkpoint loss is not WeightedQuantileLoss")
@@ -162,48 +135,27 @@ def main():
     test_baselines = aligned_baselines(df, test_index, test_tft.shape[1])
     val_persistence = val_baselines["persistence"]
     test_persistence = test_baselines["persistence"]
-    val_seasonal = val_baselines["seasonal_naive"]
     test_seasonal = test_baselines["seasonal_naive"]
     val_features = make_window_features(df, val_index)[CATEGORICAL + NUMERIC]
     test_features = make_window_features(df, test_index)[CATEGORICAL + NUMERIC]
     val_slope = val_features["slope_6"].to_numpy().reshape(val_actual.shape)
 
-    blend_weights = np.linspace(0.0, 1.0, 101)
-    blend_weight = min(
-        blend_weights,
-        key=lambda weight: reg_metrics(
-            val_actual, weight * val_tft + (1 - weight) * val_persistence
-        )["MAE"],
-    )
-    trend_alpha = min(
-        np.linspace(0.0, 1.0, 101),
-        key=lambda alpha: reg_metrics(
-            val_actual,
-            val_persistence + alpha * val_slope * np.arange(1, 4),
-        )["MAE"],
-    )
+    blend_weight = min(np.linspace(0.0, 1.0, 101),
+                       key=lambda w: reg_metrics(val_actual, w * val_tft + (1 - w) * val_persistence)["MAE"])
+    trend_alpha = min(np.linspace(0.0, 1.0, 101),
+                      key=lambda a: reg_metrics(val_actual, val_persistence + a * val_slope * np.arange(1, 4))["MAE"])
 
     train_features, train_residuals = make_training_examples(df)
     categorical = ColumnTransformer(
         [("categorical", OneHotEncoder(handle_unknown="ignore"), CATEGORICAL)],
-        remainder="passthrough",
-        sparse_threshold=0.0,
-    )
+        remainder="passthrough", sparse_threshold=0.0)
     residual_model = make_pipeline(
         categorical,
         HistGradientBoostingRegressor(
-            loss="absolute_error",
-            learning_rate=0.08,
-            max_iter=100,
-            max_leaf_nodes=15,
-            min_samples_leaf=40,
-            l2_regularization=5.0,
-            early_stopping=False,
-            random_state=SEED,
-        ),
-    )
+            loss="absolute_error", learning_rate=0.08, max_iter=100, max_leaf_nodes=15,
+            min_samples_leaf=40, l2_regularization=5.0, early_stopping=False,
+            random_state=SEED))
     residual_model.fit(train_features[CATEGORICAL + NUMERIC], train_residuals)
-
     val_residual = residual_model.predict(val_features).reshape(val_actual.shape)
     test_residual = residual_model.predict(test_features).reshape(test_actual.shape)
 
@@ -212,61 +164,41 @@ def main():
         "persistence": val_persistence,
         "tft_persistence_blend": blend_weight * val_tft + (1 - blend_weight) * val_persistence,
         "damped_trend": val_persistence + trend_alpha * val_slope * np.arange(1, 4),
-        "residual_boosting": np.clip(val_persistence + val_residual, 0, None),
-    }
+        "residual_boosting": np.clip(val_persistence + val_residual, 0, None)}
+    test_slope = test_features["slope_6"].to_numpy().reshape(test_actual.shape)
     test_predictions = {
         "raw_tft": test_tft,
         "persistence": test_persistence,
         "tft_persistence_blend": blend_weight * test_tft + (1 - blend_weight) * test_persistence,
-        "damped_trend": test_persistence + trend_alpha * test_features["slope_6"].to_numpy().reshape(test_actual.shape) * np.arange(1, 4),
-        "residual_boosting": np.clip(test_persistence + test_residual, 0, None),
-    }
-    selected_by_horizon = {}
-    val_horizon_switch = np.empty_like(val_actual)
+        "damped_trend": test_persistence + trend_alpha * test_slope * np.arange(1, 4),
+        "residual_boosting": np.clip(test_persistence + test_residual, 0, None)}
+    selected_by_horizon, val_horizon_switch = {}, np.empty_like(val_actual)
     test_horizon_switch = np.empty_like(test_actual)
-    for horizon_idx in range(val_actual.shape[1]):
-        selected = min(
-            ("persistence", "residual_boosting"),
-            key=lambda name: reg_metrics(
-                val_actual[:, horizon_idx], val_predictions[name][:, horizon_idx]
-            )["MAE"],
-        )
-        selected_by_horizon[f"horizon_h{horizon_idx + 1}"] = selected
-        val_horizon_switch[:, horizon_idx] = val_predictions[selected][:, horizon_idx]
-        test_horizon_switch[:, horizon_idx] = test_predictions[selected][:, horizon_idx]
+    for h in range(val_actual.shape[1]):
+        selected = min(("persistence", "residual_boosting"),
+                       key=lambda name: reg_metrics(val_actual[:, h], val_predictions[name][:, h])["MAE"])
+        selected_by_horizon[f"horizon_h{h + 1}"] = selected
+        val_horizon_switch[:, h] = val_predictions[selected][:, h]
+        test_horizon_switch[:, h] = test_predictions[selected][:, h]
     summary = {
         "checkpoint": str(checkpoint),
         "holdout_used_for_selection": False,
-        "tuning": {
-            "blend_tft_share": float(blend_weight),
-            "damped_trend_alpha": float(trend_alpha),
-            "residual_training_target": "future price minus origin persistence price",
-            "residual_training_targets_before": VAL_START,
-        },
-        "validation": {
-            name: metric_block(val_actual, prediction)
-            for name, prediction in val_predictions.items()
-        },
-        "test": {
-            name: metric_block(test_actual, prediction)
-            for name, prediction in test_predictions.items()
-        },
+        "tuning": {"blend_tft_share": float(blend_weight), "damped_trend_alpha": float(trend_alpha),
+                   "residual_training_target": "future price minus origin persistence price",
+                   "residual_training_targets_before": VAL_START},
+        "validation": {name: metric_block(val_actual, pred)
+                       for name, pred in val_predictions.items()},
+        "test": {name: metric_block(test_actual, pred) for name, pred in test_predictions.items()},
         "test_reference_seasonal_naive": metric_block(test_actual, test_seasonal),
         "validation_selected_horizon_switch": {
             "selection_rule": "Choose persistence or residual boosting by validation MAE, separately per horizon",
             "selected_by_horizon": selected_by_horizon,
             "validation": metric_block(val_actual, val_horizon_switch),
-            "test": metric_block(test_actual, test_horizon_switch),
-        },
-        "best_validation_strategy": min(
-            val_predictions,
-            key=lambda name: reg_metrics(val_actual, val_predictions[name])["MAE"],
-        ),
-        "best_test_strategy_for_diagnostic_only": min(
-            test_predictions,
-            key=lambda name: reg_metrics(test_actual, test_predictions[name])["MAE"],
-        ),
-    }
+            "test": metric_block(test_actual, test_horizon_switch)},
+        "best_validation_strategy": min(val_predictions,
+                                        key=lambda n: reg_metrics(val_actual, val_predictions[n])["MAE"]),
+        "best_test_strategy_for_diagnostic_only": min(test_predictions,
+                                                      key=lambda n: reg_metrics(test_actual, test_predictions[n])["MAE"])}
     output_path = run_dir / "benchmark_metrics.json"
     output_path.write_text(json.dumps(summary, indent=2))
     print(f"\nTuning: TFT share={blend_weight:.2f}; trend alpha={trend_alpha:.2f}")
