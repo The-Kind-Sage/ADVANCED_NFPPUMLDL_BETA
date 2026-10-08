@@ -1,6 +1,5 @@
 """Final report writer."""
 import os
-import json
 from datetime import datetime
 from config import (
     MAX_ENCODER, MAX_PRED, BATCH, HIDDEN, HEADS, MAX_EPOCHS, PATIENCE, SEED,
