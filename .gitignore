@@ -1,5 +1,20 @@
-tft_results/
-lightning_logs/
+# python
 __pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+
+# editors / logs
 .idea/
+.vscode/
 logs/
+lightning_logs/
+
+# heavy regenerable artifacts - reports and metrics are committed, model weights are not
+*.ckpt
+tft_results/
+
+# notebook checkpoints
+.ipynb_checkpoints/
