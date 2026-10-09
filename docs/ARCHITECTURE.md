@@ -43,3 +43,9 @@ WFP csv -> preprocess (monthly grid + features)
 - Holdout windows are never touched during training or model selection.
 - Baselines score the exact same windows and rows as the TFT (aligned baselines).
 - Metric of record: pooled MAE over all 3 horizons vs the persistence baseline.
+
+## Tests
+
+`tests/` covers pure logic only (no CSV, no GPU): metric helpers, formatting helpers,
+compat de-normalisation and chronological split boundaries. Run with `python -m pytest`
+(`[tool.pytest.ini_options]` in `pyproject.toml` adds `tests/` to the path).
