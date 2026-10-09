@@ -26,6 +26,10 @@ dev = [
     "mypy>=1.5.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/The-Kind-Sage/NFPPUMLDL"
+Repository = "https://github.com/The-Kind-Sage/NFPPUMLDL"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["config*", "data*", "models*", "training*", "evaluation*", "reporting*", "utils*", "scripts*"]
