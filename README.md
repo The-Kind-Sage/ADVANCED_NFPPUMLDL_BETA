@@ -52,3 +52,8 @@ experiment are summarised in [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md).
 - The persistence baseline still wins pooled MAE on this holdout; the TFT narrows the
   gap with horizon (per-horizon skill in [docs/RESULTS.md](docs/RESULTS.md)).
 - Evaluation covers one country and a 20-month holdout only.
+
+## Data
+
+Source: World Food Programme Nepal food prices (`Dataset/wfp_food_prices_npl.csv`),
+monthly observations 2001-2026, cleaned into a contiguous per-series panel by `prep`.
