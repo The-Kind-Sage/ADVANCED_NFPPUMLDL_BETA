@@ -35,3 +35,9 @@ Extra experiment scripts: `scripts/benchmark_forecasts.py` (five baseline strate
 Skill vs persistence: -0.595 pooled (h1 15.97 / h2 18.24 / h3 18.56). The strong
 persistence baseline is hard to beat on this window - all ablations and experiment
 reports live in `tft_results/`.
+
+## Tests
+
+```bash
+python -m pytest
+```
