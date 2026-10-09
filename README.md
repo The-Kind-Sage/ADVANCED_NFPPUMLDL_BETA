@@ -41,3 +41,8 @@ reports live in `tft_results/`.
 ```bash
 python -m pytest
 ```
+
+## Experiments
+
+Ablation history, fine-tuning trials, baseline benchmarks and the delta-3 target
+experiment are summarised in [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md).
