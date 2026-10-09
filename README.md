@@ -46,3 +46,9 @@ python -m pytest
 
 Ablation history, fine-tuning trials, baseline benchmarks and the delta-3 target
 experiment are summarised in [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md).
+
+## Limitations
+
+- The persistence baseline still wins pooled MAE on this holdout; the TFT narrows the
+  gap with horizon (per-horizon skill in [docs/RESULTS.md](docs/RESULTS.md)).
+- Evaluation covers one country and a 20-month holdout only.
